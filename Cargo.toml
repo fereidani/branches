@@ -1,0 +1,14 @@
+[package]
+name = "branches"
+version = "0.1.0"
+edition = "2018"
+authors = ["Khashayar Fereidani"]
+description = "Branch hinting and control functions for stable Rust like likely, unlikely, assume and abort"
+repository = "https://github.com/fereidani/rclite"
+documentation = "https://docs.rs/rclite"
+keywords = ["branch", "likely", "unlikely", "no_std"]
+categories = ["no-std"]
+license = "MIT"
+readme = "README.md"
+
+[dependencies]
