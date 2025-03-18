@@ -19,7 +19,14 @@ To use `branches`, add the following to your `Cargo.toml` file:
 
 ```toml
 [dependencies]
-branches = "0.1"
+branches = "0.2"
+```
+
+For a no_std environment, disable the default features by adding the following to your `Cargo.toml` instead:
+
+```toml
+[dependencies]
+branches = { version = "0.2", default-features = false }
 ```
 
 ## Functions
@@ -28,7 +35,7 @@ The following functions are provided by `branches`:
 
 - `likely(b: bool) -> bool`: Returns the input value but provides hints for the compiler that the statement is likely to be true.
 - `unlikely(b: bool) -> bool`: Returns the input value but provides hints for the compiler that the statement is unlikely to be true.
-- `assume(b: bool)`:  Assumes that the input condition is always true and causes undefined behavior if it is not. On stable Rust, this function uses `core::hint::unreachable_unchecked()` to achieve the same effect.
+- `assume(b: bool)`: Assumes that the input condition is always true and causes undefined behavior if it is not. On stable Rust, this function uses `core::hint::unreachable_unchecked()` to achieve the same effect.
 - `abort()`: Aborts the execution of the process immediately and without any cleanup.
 
 Here's an example of how you can use `likely` to optimize a function:

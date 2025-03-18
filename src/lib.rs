@@ -113,7 +113,7 @@ pub fn unlikely(b: bool) -> bool {
 /// # Arguments
 ///
 /// * `addr` - A pointer to the data to prefetch.
-/// * `level` - The cache level to prefetch into.
+/// * `locality` - The cache locality to prefetch into.
 #[inline(always)]
 pub unsafe fn prefetch_read_data(addr: *const u8, locality: i32) {
     #[cfg(not(unstable))]
