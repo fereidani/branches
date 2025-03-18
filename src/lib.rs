@@ -146,7 +146,7 @@ pub unsafe fn prefetch_read_data(addr: *const u8, locality: i32) {
 
         #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
         unsafe {
-            match level {
+            match locality {
                 0 => core::arch::asm!(
                     "prfm pldl1keep, [{}]",
                     in(reg) addr,
