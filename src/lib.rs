@@ -6,7 +6,7 @@
 /// Provides branch detection functions for Rust, using built-in Rust features
 /// on stable and core::intrinsics on nightly.
 
-// No one like to visit this function
+// No one likes to visit this function.
 #[cfg(not(unstable))]
 #[inline(always)]
 #[cold]
@@ -113,14 +113,14 @@ pub fn unlikely(b: bool) -> bool {
 /// # Arguments
 ///
 /// * `addr` - A pointer to the data to prefetch.
-/// * `locality` - The cache locality to prefetch into.
+/// * `LOCALITY` - The cache locality to prefetch into.
 #[inline(always)]
-pub unsafe fn prefetch_read_data(addr: *const u8, locality: i32) {
+pub fn prefetch_read_data<T, const LOCALITY: i32>(addr: *const T) {
     #[cfg(not(unstable))]
     {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
-            match locality {
+            match LOCALITY {
                 0 => core::arch::asm!(
                     "prefetcht0 [{}]",
                     in(reg) addr,
@@ -146,7 +146,7 @@ pub unsafe fn prefetch_read_data(addr: *const u8, locality: i32) {
 
         #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
         unsafe {
-            match locality {
+            match LOCALITY {
                 0 => core::arch::asm!(
                     "prfm pldl1keep, [{}]",
                     in(reg) addr,
@@ -184,7 +184,7 @@ pub unsafe fn prefetch_read_data(addr: *const u8, locality: i32) {
         }
     }
     #[cfg(unstable)]
-    core::intrinsics::prefetch_read_data(addr, locality)
+    core::intrinsics::prefetch_read_data::<_, LOCALITY>(addr)
 }
 
 /// Prefetches data for writing into the cache.
@@ -196,25 +196,18 @@ pub unsafe fn prefetch_read_data(addr: *const u8, locality: i32) {
 /// # Arguments
 ///
 /// * `addr` - A pointer to the data to prefetch.
-///
+/// * `LOCALITY` - The cache locality to prefetch into.
 #[inline(always)]
-pub unsafe fn prefetch_write_data(addr: *const u8, locality: i32) {
+pub fn prefetch_write_data<T, const LOCALITY: i32>(addr: *const T) {
     #[cfg(not(unstable))]
     {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
-            match locality {
-                0 | 1 | 2 => core::arch::asm!(
-                    "prefetchw [{}]",
-                    in(reg) addr,
-                    options(nostack, readonly, preserves_flags)
-                ), // Write-prefetch for L1/L2/L3 cache
-                _ => core::arch::asm!(
-                    "prefetchwnta [{}]",
-                    in(reg) addr,
-                    options(nostack, readonly, preserves_flags)
-                ), // Non-temporal write-prefetch
-            }
+            core::arch::asm!(
+                "prefetchw [{}]",
+                in(reg) addr,
+                options(nostack, readonly, preserves_flags)
+            ) // Write-prefetch for L1/L2/L3 cache
         }
 
         #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
@@ -245,5 +238,9 @@ pub unsafe fn prefetch_write_data(addr: *const u8, locality: i32) {
         }
     }
     #[cfg(unstable)]
-    core::intrinsics::prefetch_write_data(addr, locality)
+    core::intrinsics::prefetch_write_data::<_, LOCALITY>(addr)
 }
+
+// tests
+#[cfg(test)]
+mod test;

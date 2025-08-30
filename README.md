@@ -11,7 +11,7 @@
 [doc-badge]: https://img.shields.io/docsrs/branches?style=for-the-badge
 [doc-url]: https://docs.rs/branches
 
-`branches` provides branch hinting prediction and control functions for optimization of algorithms, using built-in Rust features on stable and `core::intrinsics` on nightly.
+`branches` provides branch prediction hints, control flow assumptions, abort, and manual data prefetch (read & write) helpers for performance optimization, using stable Rust primitives where available and falling back to `core::intrinsics` on nightly.
 
 ## Usage
 
@@ -37,6 +37,14 @@ The following functions are provided by `branches`:
 - `unlikely(b: bool) -> bool`: Returns the input value but provides hints for the compiler that the statement is unlikely to be true.
 - `assume(b: bool)`: Assumes that the input condition is always true and causes undefined behavior if it is not. On stable Rust, this function uses `core::hint::unreachable_unchecked()` to achieve the same effect.
 - `abort()`: Aborts the execution of the process immediately and without any cleanup.
+- `prefetch_read_data<T, const LOCALITY: i32>(addr: *const T)`: Hints the CPU to load data at `addr` into cache for an upcoming read. `LOCALITY` selects cache behavior (e.g. 0 = L1, 1 = L2, 2 = L3, other = non‑temporal or arch default). Unsafe: `addr` must be a valid, properly aligned pointer; may not alias freed or unmapped memory.
+- `prefetch_write_data<T, const LOCALITY: i32>(addr: *const T)`: Hints the CPU to load a line for an upcoming write. Same `LOCALITY` semantics as above. Unsafe for the same reasons, and you must ensure future writes are plausible (avoid prefetching arbitrary / constant addresses).
+
+Guidelines:
+
+- Only prefetch a small distance ahead (tune empirically).
+- Too-far or excessive prefetching can evict useful cache lines.
+- Never rely on prefetch for correctness; it is purely a performance hint.
 
 Here's an example of how you can use `likely` to optimize a function:
 
@@ -49,6 +57,27 @@ pub fn factorial(n: usize) -> usize {
     } else {
         1
     }
+}
+```
+
+Loop manual prefetch example:
+
+```rust
+use branches::{prefetch_read_data, prefetch_write_data};
+
+pub fn accumulate(a: &[u64], out: &mut [u64]) -> u64 {
+    let mut sum = 0u64;
+    let len = a.len().min(out.len());
+    for i in 0..len {
+        // Prefetch the next iteration's data (read) into L1
+        if i + 16 < len {
+            unsafe { prefetch_read_data::<u64, 0>(a.as_ptr().wrapping_add(i + 16)); }
+            unsafe { prefetch_write_data::<u64, 0>(out.as_ptr().wrapping_add(i + 16)); }
+        }
+        sum += a[i];
+        out[i] = sum;
+    }
+    sum
 }
 ```
 
