@@ -37,8 +37,8 @@ The following functions are provided by `branches`:
 - `unlikely(b: bool) -> bool`: Returns the input value but provides hints for the compiler that the statement is unlikely to be true.
 - `assume(b: bool)`: Assumes that the input condition is always true and causes undefined behavior if it is not. On stable Rust, this function uses `core::hint::unreachable_unchecked()` to achieve the same effect.
 - `abort()`: Aborts the execution of the process immediately and without any cleanup.
-- `prefetch_read_data<T, const LOCALITY: i32>(addr: *const T)`: Hints the CPU to load data at `addr` into cache for an upcoming read. `LOCALITY` selects cache behavior (e.g. 0 = L1, 1 = L2, 2 = L3, other = non‑temporal or arch default). Unsafe: `addr` must be a valid, properly aligned pointer; may not alias freed or unmapped memory.
-- `prefetch_write_data<T, const LOCALITY: i32>(addr: *const T)`: Hints the CPU to load a line for an upcoming write. Same `LOCALITY` semantics as above. Unsafe for the same reasons, and you must ensure future writes are plausible (avoid prefetching arbitrary / constant addresses).
+- `prefetch_read_data<T, const LOCALITY: i32>(addr: *const T)`: Hints the CPU to load data at `addr` into cache for an upcoming read. `LOCALITY` selects cache behavior (e.g. 0 = L1, 1 = L2, 2 = L3, other = non‑temporal or arch default).
+- `prefetch_write_data<T, const LOCALITY: i32>(addr: *const T)`: Hints the CPU to load a line for an upcoming write. Same `LOCALITY` semantics as above.
 
 Guidelines:
 
@@ -66,16 +66,33 @@ Loop manual prefetch example:
 use branches::{prefetch_read_data, prefetch_write_data};
 
 pub fn accumulate(a: &[u64], out: &mut [u64]) -> u64 {
+    prefetch_read_data::<_, 0>(&a);
+    prefetch_write_data::<_, 0>(&out);
     let mut sum = 0u64;
     let len = a.len().min(out.len());
-    for i in 0..len {
-        // Prefetch the next iteration's data (read) into L1
-        if i + 16 < len {
-            unsafe { prefetch_read_data::<u64, 0>(a.as_ptr().wrapping_add(i + 16)); }
-            unsafe { prefetch_write_data::<u64, 0>(out.as_ptr().wrapping_add(i + 16)); }
+    // Process in cache‑line sized blocks (assume 128‑byte cache line)
+    const CACHE_LINE_BYTES: usize = 128;
+    const ELEMS_PER_LINE: usize = CACHE_LINE_BYTES / core::mem::size_of::<u64>();
+
+    let mut i = 0;
+    while i < len {
+        // Prefetch next cache line (read + future write)
+        let next = i + ELEMS_PER_LINE;
+        if next < len {
+            prefetch_read_data::<_, 0>(&a[next]);
+            prefetch_write_data::<_, 0>(&out[next]);
         }
-        sum += a[i];
-        out[i] = sum;
+
+        // Inner loop over one cache line
+        let end = next.min(len);
+        // The compiler can (partially) unroll this inner loop because (end - i)
+        // is bounded by ELEMS_PER_LINE. For the final, shorter chunk (< ELEMS_PER_LINE)
+        // it emits the scalar fallback.
+        for j in i..end {
+            sum += a[j];
+            out[j] = sum;
+        }
+        i = end;
     }
     sum
 }
