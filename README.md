@@ -15,18 +15,16 @@
 
 ## Usage
 
-To use `branches`, add the following to your `Cargo.toml` file:
+To use `branches`, use following command:
 
-```toml
-[dependencies]
-branches = "0.2"
+```bash
+cargo add branches
 ```
 
-For a no_std environment, disable the default features by adding the following to your `Cargo.toml` instead:
+For a no_std environment, disable the default features by using following command:
 
-```toml
-[dependencies]
-branches = { version = "0.2", default-features = false }
+```bash
+cargo add branches --no-default-features
 ```
 
 ## Functions
