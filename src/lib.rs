@@ -1,13 +1,13 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![doc = include_str!("../README.md")]
 #![warn(missing_docs, missing_debug_implementations)]
-#![cfg_attr(unstable, feature(core_intrinsics))]
-#![cfg_attr(unstable, allow(internal_features))]
+#![cfg_attr(branches_nightly, feature(core_intrinsics))]
+#![cfg_attr(branches_nightly, allow(internal_features))]
 /// Provides branch detection functions for Rust, using built-in Rust features
 /// on stable and core::intrinsics on nightly.
 
 // No one likes to visit this function.
-#[cfg(not(unstable))]
+#[cfg(branches_stable)]
 #[inline(always)]
 #[cold]
 const fn cold_and_empty() {}
@@ -27,14 +27,14 @@ const fn cold_and_empty() {}
 /// In this case, by using `extern "C"` this function is guaranteed to not unwind.
 #[cold]
 pub extern "C" fn abort() -> ! {
-    #[cfg(not(unstable))]
+    #[cfg(branches_stable)]
     {
         #[cfg(not(feature = "std"))]
         unreachable!();
         #[cfg(feature = "std")]
         std::process::abort();
     }
-    #[cfg(unstable)]
+    #[cfg(branches_nightly)]
     core::intrinsics::abort()
 }
 
@@ -54,7 +54,7 @@ pub extern "C" fn abort() -> ! {
 /// if the condition passed to it is false.
 #[inline(always)]
 pub unsafe fn assume(b: bool) {
-    #[cfg(not(unstable))]
+    #[cfg(branches_stable)]
     {
         // Rust >= 1.81.0: use the newer `assert_unchecked` hint.
         #[cfg(rustc_ge_1_81_0)]
@@ -69,7 +69,7 @@ pub unsafe fn assume(b: bool) {
             }
         }
     }
-    #[cfg(unstable)]
+    #[cfg(branches_nightly)]
     core::intrinsics::assume(b)
 }
 
@@ -83,14 +83,14 @@ pub unsafe fn assume(b: bool) {
 /// Therefore, implementations must not require the user to uphold any safety invariants.
 #[inline(always)]
 pub fn likely(b: bool) -> bool {
-    #[cfg(not(unstable))]
+    #[cfg(branches_stable)]
     {
         if !b {
             cold_and_empty();
         }
         b
     }
-    #[cfg(unstable)]
+    #[cfg(branches_nightly)]
     core::intrinsics::likely(b)
 }
 
@@ -145,14 +145,14 @@ pub use core::intrinsics::cold_path as mark_unlikely;
 /// Therefore, implementations must not require the user to uphold any safety invariants.
 #[inline(always)]
 pub fn unlikely(b: bool) -> bool {
-    #[cfg(not(unstable))]
+    #[cfg(branches_stable)]
     {
         if b {
             cold_and_empty();
         }
         b
     }
-    #[cfg(unstable)]
+    #[cfg(branches_nightly)]
     core::intrinsics::unlikely(b)
 }
 
@@ -169,7 +169,7 @@ pub fn unlikely(b: bool) -> bool {
 #[inline(always)]
 #[cfg(feature = "prefetch")]
 pub fn prefetch_read_data<T, const LOCALITY: i32>(addr: *const T) {
-    #[cfg(not(unstable))]
+    #[cfg(branches_stable)]
     {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
@@ -236,7 +236,7 @@ pub fn prefetch_read_data<T, const LOCALITY: i32>(addr: *const T) {
             );
         }
     }
-    #[cfg(unstable)]
+    #[cfg(branches_nightly)]
     core::intrinsics::prefetch_read_data::<_, LOCALITY>(addr)
 }
 
@@ -253,7 +253,7 @@ pub fn prefetch_read_data<T, const LOCALITY: i32>(addr: *const T) {
 #[inline(always)]
 #[cfg(feature = "prefetch")]
 pub fn prefetch_write_data<T, const LOCALITY: i32>(addr: *const T) {
-    #[cfg(not(unstable))]
+    #[cfg(branches_stable)]
     {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
@@ -291,7 +291,7 @@ pub fn prefetch_write_data<T, const LOCALITY: i32>(addr: *const T) {
             ); // Write-prefetch
         }
     }
-    #[cfg(unstable)]
+    #[cfg(branches_nightly)]
     core::intrinsics::prefetch_write_data::<_, LOCALITY>(addr)
 }
 

@@ -21,6 +21,7 @@ rustc_version = "0.4"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
-    'cfg(unstable)',
+    'cfg(branches_stable)',
+    'cfg(branches_nightly)',
     'cfg(rustc_ge_1_81_0)',
 ] }
