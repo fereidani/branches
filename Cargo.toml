@@ -1,6 +1,6 @@
 [package]
 name = "branches"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2018"
 authors = ["Khashayar Fereidani"]
 description = "Branch hinting prediction and control functions for stable Rust including likely, unlikely, assume and abort, plus read and write cpu prefetch functions to help algorithm optimization"
@@ -20,4 +20,7 @@ prefetch = []
 rustc_version = "0.4"
 
 [lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(unstable)','cfg(rustc_ge_1_81_0)'] }
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(unstable)',
+    'cfg(rustc_ge_1_81_0)',
+] }
