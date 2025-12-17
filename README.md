@@ -50,7 +50,9 @@ Guidelines:
 - Too-far or excessive prefetching can evict useful cache lines.
 - Never rely on prefetch for correctness; it is purely a performance hint.
 
-Here's an example of how you can use `likely` to optimize a function:
+### Likely/Unlikely example
+
+Here's an example of how the `likely` can be used to optimize a function:
 
 ```rust
 use branches::likely;
@@ -63,6 +65,57 @@ pub fn factorial(n: usize) -> usize {
     }
 }
 ```
+
+To understand the specific effect of likely and unlikely, consider the following example:
+
+```rust
+use branches::likely;
+
+#[inline(never)]
+pub fn tracker(v: usize) {
+    core::hint::black_box(v);
+}
+
+#[inline(never)]
+pub fn example(unknown: bool) {
+    if likely(unknown){
+        tracker(123)
+    }else{
+        tracker(255)
+    }
+}
+```
+
+This produces the following x86-64 assembly:
+
+```assembly
+example::example::h8ce045666cbb1dd5:
+        mov     eax, edi
+        mov     edi, 123
+        test    eax, eax
+        je      .LBB0_1
+        jmp     qword ptr [rip + example::tracker::h1c31dda456fa4d53@GOTPCREL]
+.LBB0_1:
+        mov     edi, 255
+        jmp     qword ptr [rip + example::tracker::h1c31dda456fa4d53@GOTPCREL]
+```
+
+Now, if we replace `likely(unknown)` with `unlikely(unknown)`:
+
+```assembly
+example::example::h8ce045666cbb1dd5:
+        test    edi, edi
+        jne     .LBB0_1
+        mov     edi, 255
+        jmp     qword ptr [rip + example::tracker::h1c31dda456fa4d53@GOTPCREL]
+.LBB0_1:
+        mov     edi, 123
+        jmp     qword ptr [rip + example::tracker::h1c31dda456fa4d53@GOTPCREL]
+```
+
+As shown by the swapped positions of the code handling 123 and 255, the compiler eliminates the unconditional jump in the likely path (or places the jump in the unlikely path). This straight-line execution in the expected branch allows the likely path to run faster.
+
+### Prefetch example
 
 Loop manual prefetch example:
 
@@ -83,11 +136,10 @@ pub fn accumulate(a: &[u64], out: &mut [u64]) -> u64 {
     while i < len {
         // Prefetch next cache line (read + future write)
         let next = i + ELEMS_PER_LINE;
-        if next < len {
-            prefetch_read_data::<_, 0>(&a[next]);
-            prefetch_write_data::<_, 0>(&out[next]);
-        }
-
+        // There is no bug here, it is safe to prefetch memory out of bound!
+        // Having `if < len` here reduces your performance.
+        prefetch_read_data::<_, 0>(a.as_ptr().wrapping_add(next));
+        prefetch_write_data::<_, 0>(a.as_ptr().wrapping_add(next));
         // Inner loop over one cache line
         let end = next.min(len);
         // The compiler can (partially) unroll this inner loop because (end - i)
