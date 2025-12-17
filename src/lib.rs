@@ -10,7 +10,7 @@
 #[cfg(not(unstable))]
 #[inline(always)]
 #[cold]
-fn cold_and_empty() {}
+const fn cold_and_empty() {}
 
 /// Aborts the execution of the process immediately and without any cleanup.
 ///
@@ -130,7 +130,10 @@ pub fn likely(b: bool) -> bool {
 /// ```
 #[cold]
 #[inline(always)]
-pub fn mark_unlikely() {}
+#[cfg(branches_stable)]
+pub const fn mark_unlikely() {}
+#[cfg(branches_nightly)]
+pub use core::intrinsics::cold_path as mark_unlikely;
 
 /// Hints to the compiler that the branch condition is unlikely to be true.
 /// Returns the value passed to it.
