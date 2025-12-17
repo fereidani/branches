@@ -55,8 +55,19 @@ pub extern "C" fn abort() -> ! {
 #[inline(always)]
 pub unsafe fn assume(b: bool) {
     #[cfg(not(unstable))]
-    if !b {
-        core::hint::unreachable_unchecked();
+    {
+        // Rust >= 1.81.0: use the newer `assert_unchecked` hint.
+        #[cfg(rustc_ge_1_81_0)]
+        {
+            core::hint::assert_unchecked(b)
+        }
+        // Rust < 1.81.0: fall back to the older `unreachable_unchecked`.
+        #[cfg(not(rustc_ge_1_81_0))]
+        {
+            if !b {
+                core::hint::unreachable_unchecked()
+            }
+        }
     }
     #[cfg(unstable)]
     core::intrinsics::assume(b)
