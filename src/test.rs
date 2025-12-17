@@ -1,6 +1,9 @@
 #[cfg(test)]
 mod tests {
-    use crate::{abort, assume, likely, prefetch_read_data, prefetch_write_data, unlikely};
+    #[cfg(feature = "prefetch")]
+    use crate::{prefetch_read_data, prefetch_write_data};
+
+    use crate::{abort, assume, likely, unlikely};
     use core::sync::atomic::{AtomicUsize, Ordering};
 
     // If this file is an integration test (tests/tests.rs), use the crate name.
@@ -65,6 +68,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "prefetch")]
     fn test_prefetch_read_variants() {
         let buf = [0u8; 64];
         let ptr = buf.as_ptr();
@@ -78,6 +82,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "prefetch")]
     fn test_prefetch_write_variants() {
         let buf = [1u8; 32];
         let ptr = buf.as_ptr();
@@ -89,6 +94,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "prefetch")]
     fn test_prefetch_multiple_addresses() {
         let mut big = [0u8; 256];
         for (i, b) in big.iter_mut().enumerate() {
@@ -112,7 +118,8 @@ mod tests {
 
     // Smoke test combining all utilities to ensure they can coexist.
     #[test]
-    fn test_combined_usage_smoke() {
+    #[cfg(feature = "prefetch")]
+    fn test_prefetch_combined_usage_smoke() {
         let arr = [10u8, 20, 30, 40];
         let mut acc = 0u32;
         for &v in &arr {

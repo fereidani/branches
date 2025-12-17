@@ -115,6 +115,7 @@ pub fn unlikely(b: bool) -> bool {
 /// * `addr` - A pointer to the data to prefetch.
 /// * `LOCALITY` - The cache locality to prefetch into.
 #[inline(always)]
+#[cfg(feature = "prefetch")]
 pub fn prefetch_read_data<T, const LOCALITY: i32>(addr: *const T) {
     #[cfg(not(unstable))]
     {
@@ -198,6 +199,7 @@ pub fn prefetch_read_data<T, const LOCALITY: i32>(addr: *const T) {
 /// * `addr` - A pointer to the data to prefetch.
 /// * `LOCALITY` - The cache locality to prefetch into.
 #[inline(always)]
+#[cfg(feature = "prefetch")]
 pub fn prefetch_write_data<T, const LOCALITY: i32>(addr: *const T) {
     #[cfg(not(unstable))]
     {

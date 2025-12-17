@@ -61,8 +61,9 @@ pub fn factorial(n: usize) -> usize {
 Loop manual prefetch example:
 
 ```rust
+#[cfg(feature="prefetch")]
 use branches::{prefetch_read_data, prefetch_write_data};
-
+#[cfg(feature="prefetch")]
 pub fn accumulate(a: &[u64], out: &mut [u64]) -> u64 {
     prefetch_read_data::<_, 0>(&a);
     prefetch_write_data::<_, 0>(&out);
