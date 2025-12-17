@@ -1,0 +1,58 @@
+name: CI (Linux)
+
+on:
+  push:
+  pull_request:
+  schedule: [cron: "40 1 * * *"]
+
+jobs:
+  build_and_test:
+    strategy:
+      fail-fast: false
+      matrix:
+        version:
+          - stable
+          - nightly
+
+    name: ${{ matrix.version }} - x86_64-unknown-linux-gnu
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@master
+
+      - name: Install ${{ matrix.version }}
+        run: |
+          rustup toolchain install ${{ matrix.version }} --profile minimal --component rustfmt
+          rustup default ${{ matrix.version }}
+
+      - name: Generate Cargo.lock
+        run: cargo generate-lockfile
+
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/registry
+          key: ${{ matrix.version }}-x86_64-unknown-linux-gnu-cargo-registry-trimmed-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/git
+          key: ${{ matrix.version }}-x86_64-unknown-linux-gnu-cargo-index-trimmed-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run tests
+        timeout-minutes: 40
+        run: cargo test --all-features -- --nocapture
+
+      - name: Run tests no-std
+        timeout-minutes: 40
+        run: cargo test --no-default-features -- --nocapture
+
+      - name: Install cargo-cache
+        continue-on-error: true
+        run: |
+          cargo install cargo-cache --no-default-features --features ci-autoclean
+
+      - name: Clear the cargo caches
+        run: |
+          cargo-cache
