@@ -1,6 +1,6 @@
 [package]
 name = "branches"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2018"
 authors = ["Khashayar Fereidani"]
 description = "Branch hinting prediction and control functions for stable Rust including likely, unlikely, assume and abort, plus read and write cpu prefetch functions to help algorithm optimization"
@@ -12,8 +12,9 @@ license = "MIT"
 readme = "README.md"
 
 [features]
-default = ["std"]
+default = ["std", "prefetch"]
 std = []
+prefetch = []
 
 [build-dependencies]
 rustc_version = "0.4"

@@ -21,10 +21,16 @@ To use `branches`, use following command:
 cargo add branches
 ```
 
-For a no_std environment, disable the default features by using following command:
+For a no_std environment, disable the default features(std and prefetch) by using following command:
 
 ```bash
 cargo add branches --no-default-features
+```
+
+For a no_std with prefetch feature:
+
+```bash
+cargo add branches --no-default-features --features prefetch
 ```
 
 ## Functions
