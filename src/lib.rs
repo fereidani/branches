@@ -8,7 +8,7 @@
 
 // No one likes to visit this function.
 #[cfg(not(unstable))]
-#[inline(never)]
+#[inline(always)]
 #[cold]
 fn cold_and_empty() {}
 
@@ -129,7 +129,7 @@ pub fn likely(b: bool) -> bool {
 /// }
 /// ```
 #[cold]
-#[inline(never)]
+#[inline(always)]
 pub fn mark_unlikely() {}
 
 /// Hints to the compiler that the branch condition is unlikely to be true.
