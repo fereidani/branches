@@ -52,7 +52,7 @@ Guidelines:
 
 ### Likely/Unlikely example
 
-Here's an example of how the `likely` can be used to optimize a function:
+This example demonstrates how `likely` can be used to optimize a function. Note that the factorial implementation shown is intentionally simplistic and uses recursion, which is not optimal for production code.
 
 ```rust
 use branches::likely;
