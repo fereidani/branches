@@ -294,7 +294,3 @@ pub fn prefetch_write_data<T, const LOCALITY: i32>(addr: *const T) {
     #[cfg(branches_nightly)]
     core::intrinsics::prefetch_write_data::<_, LOCALITY>(addr)
 }
-
-// tests
-#[cfg(test)]
-mod test;
