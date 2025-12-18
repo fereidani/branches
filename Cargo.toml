@@ -25,3 +25,10 @@ unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(branches_nightly)',
     'cfg(rustc_ge_1_81_0)',
 ] }
+
+[dev-dependencies]
+criterion = "0.8"
+
+[[bench]]
+name = "bench"
+harness = false
