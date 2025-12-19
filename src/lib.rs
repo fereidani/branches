@@ -130,10 +130,7 @@ pub fn likely(b: bool) -> bool {
 /// ```
 #[cold]
 #[inline(always)]
-#[cfg(branches_stable)]
 pub const fn mark_unlikely() {}
-#[cfg(branches_nightly)]
-pub use core::intrinsics::cold_path as mark_unlikely;
 
 /// Hints to the compiler that the branch condition is unlikely to be true.
 /// Returns the value passed to it.
