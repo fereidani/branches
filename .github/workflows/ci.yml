@@ -56,3 +56,45 @@ jobs:
       - name: Clear the cargo caches
         run: |
           cargo-cache
+
+  build_cross:
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - aarch64-unknown-linux-gnu
+          - riscv64gc-unknown-linux-gnu
+          - powerpc64-unknown-linux-gnu
+
+    name: build - ${{ matrix.target }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@master
+
+      - name: Install stable
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup target add ${{ matrix.target }}
+
+      - name: Generate Cargo.lock
+        run: cargo generate-lockfile
+
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/registry
+          key: ${{ matrix.target }}-cargo-registry-trimmed-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/git
+          key: ${{ matrix.target }}-cargo-index-trimmed-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build
+        run: cargo build --target ${{ matrix.target }} --all-features
+
+      - name: Build no-std
+        run: cargo build --target ${{ matrix.target }} --no-default-features
