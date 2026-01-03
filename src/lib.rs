@@ -224,14 +224,15 @@ pub fn prefetch_read_data<T, const LOCALITY: i32>(addr: *const T) {
             );
         }
 
-        #[cfg(any(target_arch = "powerpc", target_arch = "powerpc64"))]
-        unsafe {
-            core::arch::asm!(
-                "dcbt 0, {}",
-                in(reg) addr,
-                options(nostack, readonly, preserves_flags)
-            );
-        }
+        // this requires unstable asm feature, uncomment when stabilized
+        //#[cfg(any(target_arch = "powerpc", target_arch = "powerpc64"))]
+        //unsafe {
+        //    core::arch::asm!(
+        //        "dcbt 0, {}",
+        //        in(reg) addr,
+        //        options(nostack, readonly, preserves_flags)
+        //    );
+        //}
     }
     #[cfg(branches_nightly)]
     core::intrinsics::prefetch_read_data::<_, LOCALITY>(addr)
@@ -279,14 +280,15 @@ pub fn prefetch_write_data<T, const LOCALITY: i32>(addr: *const T) {
             );
         }
 
-        #[cfg(any(target_arch = "powerpc", target_arch = "powerpc64"))]
-        unsafe {
-            core::arch::asm!(
-                "dcbtst 0, {}",
-                in(reg) addr,
-                options(nostack, readonly, preserves_flags)
-            ); // Write-prefetch
-        }
+        // this requires unstable asm feature, uncomment when stabilized
+        //#[cfg(any(target_arch = "powerpc", target_arch = "powerpc64"))]
+        //unsafe {
+        //    core::arch::asm!(
+        //        "dcbtst 0, {}",
+        //        in(reg) addr,
+        //        options(nostack, readonly, preserves_flags)
+        //    ); // Write-prefetch
+        // }
     }
     #[cfg(branches_nightly)]
     core::intrinsics::prefetch_write_data::<_, LOCALITY>(addr)
