@@ -13,6 +13,11 @@ jobs:
         version:
           - stable
           - nightly
+          # Pinned versions straddling the 1.95 cold_path stabilization:
+          # 1.94 -> const-fn fallback (not(rustc_ge_1_95_0)),
+          # 1.96 -> core::hint::cold_path re-export.
+          - 1.96.0
+          - 1.94.0
 
     name: ${{ matrix.version }} - x86_64-unknown-linux-gnu
     runs-on: ubuntu-latest

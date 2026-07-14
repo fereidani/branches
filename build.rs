@@ -10,5 +10,8 @@ fn main() {
         if meta.semver >= Version::parse("1.81.0").unwrap() {
             println!("cargo:rustc-cfg=rustc_ge_1_81_0");
         }
+        if meta.semver >= Version::parse("1.95.0").unwrap() {
+            println!("cargo:rustc-cfg=rustc_ge_1_95_0");
+        }
     }
 }

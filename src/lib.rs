@@ -7,10 +7,13 @@
 /// on stable and core::intrinsics on nightly.
 
 // No one likes to visit this function.
-#[cfg(branches_stable)]
+#[cfg(all(branches_stable, not(rustc_ge_1_95_0)))]
 #[inline(always)]
 #[cold]
 const fn cold_and_empty() {}
+
+#[cfg(all(branches_stable, rustc_ge_1_95_0))]
+use core::hint::cold_path as cold_and_empty;
 
 /// Aborts the execution of the process immediately and without any cleanup.
 ///
@@ -128,9 +131,12 @@ pub fn likely(b: bool) -> bool {
 ///     }
 /// }
 /// ```
+#[cfg(not(rustc_ge_1_95_0))]
 #[cold]
 #[inline(always)]
 pub const fn mark_unlikely() {}
+#[cfg(rustc_ge_1_95_0)]
+pub use core::hint::cold_path as mark_unlikely;
 
 /// Hints to the compiler that the branch condition is unlikely to be true.
 /// Returns the value passed to it.
