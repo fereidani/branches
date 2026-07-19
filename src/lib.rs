@@ -177,9 +177,13 @@ pub fn unlikely(b: bool) -> bool {
 #[inline(always)]
 #[cfg(feature = "prefetch")]
 pub fn prefetch_read_data<T, const LOCALITY: i32>(addr: *const T) {
+    let _ = addr;
     #[cfg(branches_stable)]
     {
-        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        #[cfg(all(
+            any(target_arch = "x86", target_arch = "x86_64"),
+            target_feature = "sse"
+        ))]
         unsafe {
             match LOCALITY {
                 0 => core::arch::asm!(
@@ -205,7 +209,9 @@ pub fn prefetch_read_data<T, const LOCALITY: i32>(addr: *const T) {
             }
         }
 
-        #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
+        // `prfm` only exists on AArch64; 32-bit ARM would need `pld`, which
+        // not every 32-bit ARM target supports, so arm stays a no-op.
+        #[cfg(target_arch = "aarch64")]
         unsafe {
             match LOCALITY {
                 0 => core::arch::asm!(
@@ -218,18 +224,25 @@ pub fn prefetch_read_data<T, const LOCALITY: i32>(addr: *const T) {
                     in(reg) addr,
                     options(nostack, readonly, preserves_flags)
                 ), // L2 cache
-                _ => core::arch::asm!(
+                2 => core::arch::asm!(
                     "prfm pldl3keep, [{}]",
                     in(reg) addr,
                     options(nostack, readonly, preserves_flags)
-                ), // L3 or non-temporal
+                ), // L3 cache
+                _ => core::arch::asm!(
+                    "prfm pldl1strm, [{}]",
+                    in(reg) addr,
+                    options(nostack, readonly, preserves_flags)
+                ), // Non-temporal (streaming)
             }
         }
 
-        #[cfg(target_arch = "riscv64")]
+        // The Zicbop extension is not part of the baseline riscv64gc target,
+        // so the instruction is only emitted when the feature is enabled.
+        #[cfg(all(target_arch = "riscv64", target_feature = "zicbop"))]
         unsafe {
             core::arch::asm!(
-                "prefetch [{}]",
+                "prefetch.r 0({})",
                 in(reg) addr,
                 options(nostack, readonly, preserves_flags)
             );
@@ -262,9 +275,10 @@ pub fn prefetch_read_data<T, const LOCALITY: i32>(addr: *const T) {
 #[inline(always)]
 #[cfg(feature = "prefetch")]
 pub fn prefetch_write_data<T, const LOCALITY: i32>(addr: *const T) {
+    let _ = addr;
     #[cfg(branches_stable)]
     {
-        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        #[cfg(target_arch = "x86_64")]
         unsafe {
             core::arch::asm!(
                 "prefetchw [{}]",
@@ -273,19 +287,52 @@ pub fn prefetch_write_data<T, const LOCALITY: i32>(addr: *const T) {
             ) // Write-prefetch for L1/L2/L3 cache
         }
 
-        #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
+        // 32-bit x86: `prefetchw` faults on CPUs without the PRFCHW/3DNow!
+        // extension, so fall back to a plain read prefetch into L1, the same
+        // strategy GCC and Clang use for `__builtin_prefetch(p, 1)` there.
+        #[cfg(all(target_arch = "x86", target_feature = "sse"))]
         unsafe {
             core::arch::asm!(
-                "prfm pstl1keep, [{}]",
+                "prefetcht0 [{}]",
                 in(reg) addr,
                 options(nostack, readonly, preserves_flags)
-            ); // Write-prefetch for L1 cache
+            )
         }
 
-        #[cfg(target_arch = "riscv64")]
+        // `prfm` only exists on AArch64; 32-bit ARM would need `pldw`, which
+        // requires the MP extension, so arm stays a no-op.
+        #[cfg(target_arch = "aarch64")]
+        unsafe {
+            match LOCALITY {
+                0 => core::arch::asm!(
+                    "prfm pstl1keep, [{}]",
+                    in(reg) addr,
+                    options(nostack, readonly, preserves_flags)
+                ), // L1 cache
+                1 => core::arch::asm!(
+                    "prfm pstl2keep, [{}]",
+                    in(reg) addr,
+                    options(nostack, readonly, preserves_flags)
+                ), // L2 cache
+                2 => core::arch::asm!(
+                    "prfm pstl3keep, [{}]",
+                    in(reg) addr,
+                    options(nostack, readonly, preserves_flags)
+                ), // L3 cache
+                _ => core::arch::asm!(
+                    "prfm pstl1strm, [{}]",
+                    in(reg) addr,
+                    options(nostack, readonly, preserves_flags)
+                ), // Non-temporal (streaming)
+            }
+        }
+
+        // The Zicbop extension is not part of the baseline riscv64gc target,
+        // so the instruction is only emitted when the feature is enabled.
+        #[cfg(all(target_arch = "riscv64", target_feature = "zicbop"))]
         unsafe {
             core::arch::asm!(
-                "prefetchw [{}]",
+                "prefetch.w 0({})",
                 in(reg) addr,
                 options(nostack, readonly, preserves_flags)
             );
