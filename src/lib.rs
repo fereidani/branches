@@ -443,3 +443,31 @@ pub fn prefetch_write_data<T, const LOCALITY: i32>(addr: *const T) {
         }
     }
 }
+
+// Non-generic instantiations of every architecture-specific code path.
+// Not part of the public API: only compiled when CI passes
+// `RUSTFLAGS="--cfg branches_check_asm"`, so that plain library cross-builds
+// (which never monomorphize the generic prefetch functions) still assemble
+// the inline assembly for the target architecture.
+#[cfg(branches_check_asm)]
+#[doc(hidden)]
+pub fn __branches_check_asm(addr: *const u8, cond: bool) -> bool {
+    let _ = addr;
+    #[cfg(feature = "prefetch")]
+    {
+        prefetch_read_data::<_, 0>(addr);
+        prefetch_read_data::<_, 1>(addr);
+        prefetch_read_data::<_, 2>(addr);
+        prefetch_read_data::<_, 3>(addr);
+        prefetch_read_data::<_, { -1 }>(addr);
+        prefetch_write_data::<_, 0>(addr);
+        prefetch_write_data::<_, 1>(addr);
+        prefetch_write_data::<_, 2>(addr);
+        prefetch_write_data::<_, 3>(addr);
+        prefetch_write_data::<_, { -1 }>(addr);
+    }
+    if unlikely(!cond) {
+        mark_unlikely();
+    }
+    likely(cond)
+}

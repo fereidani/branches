@@ -26,6 +26,7 @@ unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(branches_nightly)',
     'cfg(rustc_ge_1_81_0)',
     'cfg(rustc_ge_1_95_0)',
+    'cfg(branches_check_asm)',
 ] }
 
 [dev-dependencies]
