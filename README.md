@@ -39,9 +39,10 @@ The following functions are provided by `branches`:
 
 - `likely(b: bool) -> bool`: Returns the input value but provides hints for the compiler that the statement is likely to be true.
 - `unlikely(b: bool) -> bool`: Returns the input value but provides hints for the compiler that the statement is unlikely to be true.
-- `assume(b: bool)`: Assumes that the input condition is always true and causes undefined behavior if it is not. On stable Rust, this function uses `core::hint::unreachable_unchecked()` to achieve the same effect.
+- `mark_unlikely()`: Marks the current code path (e.g. a match arm or error branch) as cold without wrapping a condition.
+- `assume(b: bool)`: Assumes that the input condition is always true and causes undefined behavior if it is not. On stable Rust, this function uses `core::hint::assert_unchecked()` (or `core::hint::unreachable_unchecked()` on rustc older than 1.81) to achieve the same effect.
 - `abort()`: Aborts the execution of the process immediately and without any cleanup.
-- `prefetch_read_data<T, const LOCALITY: i32>(addr: *const T)`: Hints the CPU to load data at `addr` into cache for an upcoming read. `LOCALITY` selects cache behavior (e.g. 0 = L1, 1 = L2, 2 = L3, other = non‑temporal or arch default).
+- `prefetch_read_data<T, const LOCALITY: i32>(addr: *const T)`: Hints the CPU to load data at `addr` into cache for an upcoming read. `LOCALITY` selects cache behavior (0 = L1, 1 = L2, 2 = L3, other = non‑temporal). The convention is the same on stable and nightly toolchains.
 - `prefetch_write_data<T, const LOCALITY: i32>(addr: *const T)`: Hints the CPU to load a line for an upcoming write. Same `LOCALITY` semantics as above.
 
 Guidelines:
@@ -49,6 +50,7 @@ Guidelines:
 - Only prefetch a small distance ahead (tune empirically).
 - Too-far or excessive prefetching can evict useful cache lines.
 - Never rely on prefetch for correctness; it is purely a performance hint.
+- Prefetch hints are emitted on `x86`/`x86_64`, `aarch64`, and `riscv64` with the `zicbop` target feature (`-C target-feature=+zicbop`); on other stable targets they compile to no-ops, while nightly defers to LLVM.
 
 ### Likely/Unlikely example
 
@@ -124,8 +126,8 @@ Loop manual prefetch example:
 use branches::{prefetch_read_data, prefetch_write_data};
 #[cfg(feature="prefetch")]
 pub fn accumulate(a: &[u64], out: &mut [u64]) -> u64 {
-    prefetch_read_data::<_, 0>(&a);
-    prefetch_write_data::<_, 0>(&out);
+    prefetch_read_data::<_, 0>(a.as_ptr());
+    prefetch_write_data::<_, 0>(out.as_ptr());
     let mut sum = 0u64;
     let len = a.len().min(out.len());
     // Process in cache‑line sized blocks (assume 128‑byte cache line)
@@ -139,7 +141,7 @@ pub fn accumulate(a: &[u64], out: &mut [u64]) -> u64 {
         // There is no bug here, it is safe to prefetch memory out of bound!
         // Having `if < len` here reduces your performance.
         prefetch_read_data::<_, 0>(a.as_ptr().wrapping_add(next));
-        prefetch_write_data::<_, 0>(a.as_ptr().wrapping_add(next));
+        prefetch_write_data::<_, 0>(out.as_ptr().wrapping_add(next));
         // Inner loop over one cache line
         let end = next.min(len);
         // The compiler can (partially) unroll this inner loop because (end - i)
