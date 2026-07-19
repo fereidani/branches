@@ -3,8 +3,8 @@
 #![warn(missing_docs, missing_debug_implementations)]
 #![cfg_attr(branches_nightly, feature(core_intrinsics))]
 #![cfg_attr(branches_nightly, allow(internal_features))]
-/// Provides branch detection functions for Rust, using built-in Rust features
-/// on stable and core::intrinsics on nightly.
+// Provides branch detection functions for Rust, using built-in Rust features
+// on stable and core::intrinsics on nightly.
 
 // No one likes to visit this function.
 //
@@ -109,11 +109,11 @@ pub fn likely(b: bool) -> bool {
 /// This function does not take any arguments and does not return any value.
 /// It is primarily used to mark functions or code paths that are rarely executed,
 /// such as error handling or panic paths.
-
-/// Example: marking the `None` variant of an `Option` as unlikely.
 ///
-/// In many hot paths an `Option<T>` is expected to be `Some`.  
-/// By marking the `None` arm using `mark_unlikely` we give the optimizer a hint
+/// Example: marking the error variant of a match as unlikely.
+///
+/// In many hot paths a value is expected to be the success variant.
+/// By marking the error arm using `mark_unlikely` we give the optimizer a hint
 /// that this branch is rarely taken.
 ///
 /// ```rust
@@ -141,6 +141,40 @@ pub fn likely(b: bool) -> bool {
 #[cold]
 #[inline(never)]
 pub const fn mark_unlikely() {}
+/// Marks a code block as cold, indicating to the compiler that it is unlikely to be called.
+/// This can help the compiler optimize for the common case.
+///
+/// This function does not take any arguments and does not return any value.
+/// It is primarily used to mark functions or code paths that are rarely executed,
+/// such as error handling or panic paths.
+///
+/// Example: marking the error variant of a match as unlikely.
+///
+/// In many hot paths a value is expected to be the success variant.
+/// By marking the error arm using `mark_unlikely` we give the optimizer a hint
+/// that this branch is rarely taken.
+///
+/// ```rust
+/// use branches::{mark_unlikely};
+///
+/// #[derive(Debug)]
+/// enum Status {
+///     Ok(i32),
+///     Err(String),
+/// }
+///
+/// fn get_value(status: Status) -> i32 {
+///     match status {
+///         Status::Ok(v) => v,
+///         // The error case is rare, hint the compiler accordingly.
+///         Status::Err(err) => {
+///             mark_unlikely();
+///             eprintln!("unexpected error: {:?}", err);
+///             -1
+///         }
+///     }
+/// }
+/// ```
 #[cfg(rustc_ge_1_95_0)]
 pub use core::hint::cold_path as mark_unlikely;
 
