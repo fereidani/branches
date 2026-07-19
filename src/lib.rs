@@ -7,8 +7,13 @@
 /// on stable and core::intrinsics on nightly.
 
 // No one likes to visit this function.
+//
+// It must stay an out-of-line call: the whole trick relies on LLVM seeing a
+// call to a `#[cold]` function inside the branch. Any form of inlining
+// (`#[inline]` or `#[inline(always)]`) removes the call during optimization
+// and with it the hint, turning `likely`/`unlikely` into no-ops.
 #[cfg(all(branches_stable, not(rustc_ge_1_95_0)))]
-#[inline(always)]
+#[inline(never)]
 #[cold]
 const fn cold_and_empty() {}
 
@@ -133,7 +138,7 @@ pub fn likely(b: bool) -> bool {
 /// ```
 #[cfg(not(rustc_ge_1_95_0))]
 #[cold]
-#[inline(always)]
+#[inline(never)]
 pub const fn mark_unlikely() {}
 #[cfg(rustc_ge_1_95_0)]
 pub use core::hint::cold_path as mark_unlikely;
