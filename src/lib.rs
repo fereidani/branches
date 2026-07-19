@@ -90,6 +90,7 @@ pub unsafe fn assume(b: bool) {
 ///
 /// Unlike most intrinsics, this function is safe to call and doesn't require an `unsafe` block.
 /// Therefore, implementations must not require the user to uphold any safety invariants.
+#[must_use = "the hint only takes effect when the returned value is used as a branch condition"]
 #[inline(always)]
 pub fn likely(b: bool) -> bool {
     #[cfg(branches_stable)]
@@ -186,6 +187,7 @@ pub use core::hint::cold_path as mark_unlikely;
 ///
 /// Unlike most intrinsics, this function is safe to call and doesn't require an `unsafe` block.
 /// Therefore, implementations must not require the user to uphold any safety invariants.
+#[must_use = "the hint only takes effect when the returned value is used as a branch condition"]
 #[inline(always)]
 pub fn unlikely(b: bool) -> bool {
     #[cfg(branches_stable)]
