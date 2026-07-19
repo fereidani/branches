@@ -170,10 +170,25 @@ pub fn unlikely(b: bool) -> bool {
 /// will be read soon, allowing the CPU to load the data into the cache
 /// in advance. This can improve performance by reducing cache misses.
 ///
+/// Prefetching is only a hint and never affects the observable behavior of
+/// the program: it is safe to call with any pointer, including dangling or
+/// out-of-bounds pointers.
+///
 /// # Arguments
 ///
 /// * `addr` - A pointer to the data to prefetch.
-/// * `LOCALITY` - The cache locality to prefetch into.
+/// * `LOCALITY` - The cache level to prefetch into: `0` = L1, `1` = L2,
+///   `2` = L3, any other value = non-temporal. The convention is identical
+///   on stable and nightly toolchains.
+///
+/// # Supported architectures
+///
+/// On stable, the hint is emitted on `x86`/`x86_64` (with the `sse` target
+/// feature, enabled by default on `x86_64` and `i686` targets), `aarch64`,
+/// and `riscv64` when compiled with the `zicbop` target feature
+/// (`-C target-feature=+zicbop`). On other targets this compiles to a
+/// no-op. On nightly, the hint is lowered by LLVM for every architecture
+/// that supports one.
 #[inline(always)]
 #[cfg(feature = "prefetch")]
 pub fn prefetch_read_data<T, const LOCALITY: i32>(addr: *const T) {
@@ -259,7 +274,19 @@ pub fn prefetch_read_data<T, const LOCALITY: i32>(addr: *const T) {
         //}
     }
     #[cfg(branches_nightly)]
-    core::intrinsics::prefetch_read_data::<_, LOCALITY>(addr)
+    {
+        // `core::intrinsics` uses the opposite locality convention
+        // (0 = no locality .. 3 = maximally local), so translate to keep
+        // stable and nightly behavior identical. The catch-all arm also
+        // keeps out-of-range values from reaching LLVM, which only accepts
+        // 0..=3 and crashes otherwise.
+        match LOCALITY {
+            0 => core::intrinsics::prefetch_read_data::<_, 3>(addr),
+            1 => core::intrinsics::prefetch_read_data::<_, 2>(addr),
+            2 => core::intrinsics::prefetch_read_data::<_, 1>(addr),
+            _ => core::intrinsics::prefetch_read_data::<_, 0>(addr),
+        }
+    }
 }
 
 /// Prefetches data for writing into the cache.
@@ -268,10 +295,26 @@ pub fn prefetch_read_data<T, const LOCALITY: i32>(addr: *const T) {
 /// will be written soon, allowing the CPU to load the data into the cache
 /// in advance. This can improve performance by reducing cache misses.
 ///
+/// Prefetching is only a hint and never affects the observable behavior of
+/// the program: it is safe to call with any pointer, including dangling or
+/// out-of-bounds pointers.
+///
 /// # Arguments
 ///
 /// * `addr` - A pointer to the data to prefetch.
-/// * `LOCALITY` - The cache locality to prefetch into.
+/// * `LOCALITY` - The cache level to prefetch into: `0` = L1, `1` = L2,
+///   `2` = L3, any other value = non-temporal. The convention is identical
+///   on stable and nightly toolchains. On `x86_64` there is a single
+///   write-prefetch instruction, so `LOCALITY` is ignored there.
+///
+/// # Supported architectures
+///
+/// On stable, the hint is emitted on `x86`/`x86_64` (with the `sse` target
+/// feature, enabled by default on `x86_64` and `i686` targets), `aarch64`,
+/// and `riscv64` when compiled with the `zicbop` target feature
+/// (`-C target-feature=+zicbop`). On other targets this compiles to a
+/// no-op. On nightly, the hint is lowered by LLVM for every architecture
+/// that supports one.
 #[inline(always)]
 #[cfg(feature = "prefetch")]
 pub fn prefetch_write_data<T, const LOCALITY: i32>(addr: *const T) {
@@ -349,5 +392,17 @@ pub fn prefetch_write_data<T, const LOCALITY: i32>(addr: *const T) {
         // }
     }
     #[cfg(branches_nightly)]
-    core::intrinsics::prefetch_write_data::<_, LOCALITY>(addr)
+    {
+        // `core::intrinsics` uses the opposite locality convention
+        // (0 = no locality .. 3 = maximally local), so translate to keep
+        // stable and nightly behavior identical. The catch-all arm also
+        // keeps out-of-range values from reaching LLVM, which only accepts
+        // 0..=3 and crashes otherwise.
+        match LOCALITY {
+            0 => core::intrinsics::prefetch_write_data::<_, 3>(addr),
+            1 => core::intrinsics::prefetch_write_data::<_, 2>(addr),
+            2 => core::intrinsics::prefetch_write_data::<_, 1>(addr),
+            _ => core::intrinsics::prefetch_write_data::<_, 0>(addr),
+        }
+    }
 }

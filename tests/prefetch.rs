@@ -53,6 +53,22 @@ fn test_prefetch_write_variants() {
     assert_eq!(buf.iter().sum::<u8>(), 32);
 }
 
+// Out-of-range localities are valid input: they must clamp to non-temporal
+// instead of crashing codegen (nightly previously ICEd on values outside 0..=3).
+#[test]
+#[cfg(feature = "prefetch")]
+fn test_prefetch_out_of_range_locality() {
+    let buf = [0u8; 8];
+    let ptr = buf.as_ptr();
+    prefetch_read_data::<_, { -1 }>(ptr);
+    prefetch_read_data::<_, 4>(ptr);
+    prefetch_read_data::<_, { i32::MAX }>(ptr);
+    prefetch_write_data::<_, { -1 }>(ptr);
+    prefetch_write_data::<_, 4>(ptr);
+    prefetch_write_data::<_, { i32::MAX }>(ptr);
+    assert_eq!(buf.iter().sum::<u8>(), 0);
+}
+
 #[test]
 #[cfg(feature = "prefetch")]
 fn test_prefetch_multiple_addresses() {
