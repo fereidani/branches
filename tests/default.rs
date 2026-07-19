@@ -1,7 +1,6 @@
 use branches::{assume, likely, unlikely};
 use core::sync::atomic::{AtomicUsize, Ordering};
 
-#[allow(unused_imports)]
 #[test]
 fn test_likely_identity() {
     for &b in &[true, false] {
