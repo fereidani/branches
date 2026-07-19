@@ -28,22 +28,23 @@ use core::hint::cold_path as cold_and_empty;
 /// This function is safe to call, so it does not require an unsafe block.
 /// Therefore, implementations must not require the user to uphold any safety invariants.
 ///
-/// If the std feature is enabled, this function calls std::process::abort()
-/// which is a more user-friendly and stable way of aborting the process.
+/// If the std feature is enabled, this function calls `std::process::abort()`
+/// on every channel, which raises `SIGABRT` on Unix and honors registered
+/// abort handlers.
 ///
-/// If the std feature is disabled, this function panics by calling panic!().
-/// In this case, by using `extern "C"` this function is guaranteed to not unwind.
+/// If the std feature is disabled, this function executes a trap instruction
+/// on nightly, and panics by calling `panic!()` on stable. In the panicking
+/// case, `extern "C"` guarantees this function does not unwind, but actual
+/// termination depends on the registered panic handler: a handler that loops
+/// forever (common in embedded code) hangs instead of aborting.
 #[cold]
 pub extern "C" fn abort() -> ! {
-    #[cfg(branches_stable)]
-    {
-        #[cfg(not(feature = "std"))]
-        unreachable!();
-        #[cfg(feature = "std")]
-        std::process::abort();
-    }
-    #[cfg(branches_nightly)]
-    core::intrinsics::abort()
+    #[cfg(feature = "std")]
+    std::process::abort();
+    #[cfg(all(not(feature = "std"), branches_nightly))]
+    core::intrinsics::abort();
+    #[cfg(all(not(feature = "std"), branches_stable))]
+    panic!("branches::abort() called");
 }
 
 /// Informs the optimizer that a condition is always true.
