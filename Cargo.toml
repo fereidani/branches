@@ -1,6 +1,6 @@
 [package]
 name = "branches"
-version = "0.4.4"
+version = "0.4.5"
 edition = "2018"
 rust-version = "1.59"
 authors = ["Khashayar Fereidani"]

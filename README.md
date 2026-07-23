@@ -159,6 +159,10 @@ pub fn accumulate(a: &[u64], out: &mut [u64]) -> u64 {
 
 By correctly using the functions provided by branches, you can achieve a 10-20% improvement in the performance of your algorithms.
 
+## Migration
+
+Upgrading from an older release? See [MIGRATE.md](https://github.com/fereidani/branches/blob/master/MIGRATE.md).
+
 ## License
 
 `branches` is licensed under the MIT license. See the `LICENSE` file for more information.
