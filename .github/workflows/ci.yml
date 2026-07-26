@@ -70,7 +70,10 @@ jobs:
           - aarch64-unknown-linux-gnu
           - armv7-unknown-linux-gnueabihf
           - riscv64gc-unknown-linux-gnu
+          - powerpc-unknown-linux-gnu
           - powerpc64-unknown-linux-gnu
+          - powerpc64le-unknown-linux-gnu
+          - s390x-unknown-linux-gnu
 
     name: build - ${{ matrix.target }}
     runs-on: ubuntu-latest
@@ -118,3 +121,74 @@ jobs:
         env:
           RUSTFLAGS: "--cfg branches_check_asm -C target-feature=+zicbop"
         run: cargo build --target ${{ matrix.target }} --all-features
+
+  # Inline assembly was stabilized per architecture: s390x in 1.84, PowerPC in
+  # 1.95. Build both sides of each boundary and assert the prefetch
+  # instructions are emitted exactly on the toolchains that support them --
+  # older compilers must still build the crate, with prefetch as a no-op.
+  prefetch_asm_stabilization:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: s390x-unknown-linux-gnu
+            version: "1.83.0"
+            mnemonics: pfd
+            expect: absent
+          - target: s390x-unknown-linux-gnu
+            version: "1.84.0"
+            mnemonics: pfd
+            expect: present
+          - target: powerpc-unknown-linux-gnu
+            version: "1.94.0"
+            mnemonics: dcbt dcbtst
+            expect: absent
+          - target: powerpc-unknown-linux-gnu
+            version: "1.95.0"
+            mnemonics: dcbt dcbtst
+            expect: present
+          - target: powerpc64-unknown-linux-gnu
+            version: "1.94.0"
+            mnemonics: dcbt dcbtst
+            expect: absent
+          - target: powerpc64-unknown-linux-gnu
+            version: "1.95.0"
+            mnemonics: dcbt dcbtst
+            expect: present
+
+    name: asm ${{ matrix.expect }} - ${{ matrix.version }} - ${{ matrix.target }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@master
+
+      - name: Install ${{ matrix.version }}
+        run: |
+          rustup toolchain install ${{ matrix.version }} --profile minimal
+          rustup default ${{ matrix.version }}
+          rustup target add ${{ matrix.target }}
+
+      - name: Generate Cargo.lock
+        run: cargo generate-lockfile
+
+      # --emit asm keeps the assembly around so the instructions can be
+      # inspected; --cfg branches_check_asm forces the generic prefetch
+      # functions to be monomorphized for this target.
+      - name: Build
+        env:
+          RUSTFLAGS: "--cfg branches_check_asm --emit asm"
+        run: cargo build --target ${{ matrix.target }} --all-features
+
+      - name: Assert prefetch instructions are ${{ matrix.expect }}
+        run: |
+          set -eu
+          asm=$(ls target/${{ matrix.target }}/debug/deps/branches-*.s)
+          for mnemonic in ${{ matrix.mnemonics }}; do
+            if grep -qw "$mnemonic" $asm; then
+              found=present
+            else
+              found=absent
+            fi
+            echo "$mnemonic: $found (expected ${{ matrix.expect }})"
+            test "$found" = "${{ matrix.expect }}"
+          done
