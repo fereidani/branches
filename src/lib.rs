@@ -222,10 +222,14 @@ pub fn unlikely(b: bool) -> bool {
 ///
 /// On stable, the hint is emitted on `x86`/`x86_64` (with the `sse` target
 /// feature, enabled by default on `x86_64` and `i686` targets), `aarch64`,
-/// and `riscv64` when compiled with the `zicbop` target feature
-/// (`-C target-feature=+zicbop`). On other targets this compiles to a
-/// no-op. On nightly, the hint is lowered by LLVM for every architecture
-/// that supports one.
+/// `riscv64` when compiled with the `zicbop` target feature
+/// (`-C target-feature=+zicbop`), `s390x` on rustc 1.84 or newer, and
+/// `powerpc`/`powerpc64` on rustc 1.95 or newer (the releases that
+/// stabilized inline assembly for those architectures). `s390x`,
+/// `powerpc` and `powerpc64` have a single prefetch instruction with no
+/// cache-level selection, so `LOCALITY` is ignored there. On other targets
+/// this compiles to a no-op. On nightly, the hint is lowered by LLVM for
+/// every architecture that supports one.
 #[inline(always)]
 #[cfg(feature = "prefetch")]
 pub fn prefetch_read_data<T, const LOCALITY: i32>(addr: *const T) {
@@ -300,15 +304,35 @@ pub fn prefetch_read_data<T, const LOCALITY: i32>(addr: *const T) {
             );
         }
 
-        // this requires unstable asm feature, uncomment when stabilized
-        //#[cfg(any(target_arch = "powerpc", target_arch = "powerpc64"))]
-        //unsafe {
-        //    core::arch::asm!(
-        //        "dcbt 0, {}",
-        //        in(reg) addr,
-        //        options(nostack, readonly, preserves_flags)
-        //    );
-        //}
+        // s390x inline assembly was stabilized in Rust 1.84, so older
+        // compilers stay a no-op instead of failing to build. `pfd` has no
+        // locality levels (LLVM ignores locality on SystemZ too), and the
+        // address must go in an address register: `r0` in a base register
+        // slot reads as the literal zero, not as the register.
+        #[cfg(all(rustc_ge_1_84_0, target_arch = "s390x"))]
+        unsafe {
+            core::arch::asm!(
+                "pfd 1, 0({})",
+                in(reg_addr) addr,
+                options(nostack, readonly, preserves_flags)
+            ); // Prefetch for load
+        }
+
+        // PowerPC inline assembly was stabilized in Rust 1.95, so older
+        // compilers stay a no-op instead of failing to build. `dcbt` carries
+        // no locality levels either, matching LLVM's lowering. The register
+        // holds the `RB` operand, where `r0` keeps its normal meaning.
+        #[cfg(all(
+            rustc_ge_1_95_0,
+            any(target_arch = "powerpc", target_arch = "powerpc64")
+        ))]
+        unsafe {
+            core::arch::asm!(
+                "dcbt 0, {}",
+                in(reg) addr,
+                options(nostack, readonly, preserves_flags)
+            );
+        }
     }
     #[cfg(branches_nightly)]
     {
@@ -348,10 +372,14 @@ pub fn prefetch_read_data<T, const LOCALITY: i32>(addr: *const T) {
 ///
 /// On stable, the hint is emitted on `x86`/`x86_64` (with the `sse` target
 /// feature, enabled by default on `x86_64` and `i686` targets), `aarch64`,
-/// and `riscv64` when compiled with the `zicbop` target feature
-/// (`-C target-feature=+zicbop`). On other targets this compiles to a
-/// no-op. On nightly, the hint is lowered by LLVM for every architecture
-/// that supports one.
+/// `riscv64` when compiled with the `zicbop` target feature
+/// (`-C target-feature=+zicbop`), `s390x` on rustc 1.84 or newer, and
+/// `powerpc`/`powerpc64` on rustc 1.95 or newer (the releases that
+/// stabilized inline assembly for those architectures). `s390x`,
+/// `powerpc` and `powerpc64` have a single write-prefetch instruction with
+/// no cache-level selection, so `LOCALITY` is ignored there. On other
+/// targets this compiles to a no-op. On nightly, the hint is lowered by
+/// LLVM for every architecture that supports one.
 #[inline(always)]
 #[cfg(feature = "prefetch")]
 pub fn prefetch_write_data<T, const LOCALITY: i32>(addr: *const T) {
@@ -418,15 +446,35 @@ pub fn prefetch_write_data<T, const LOCALITY: i32>(addr: *const T) {
             );
         }
 
-        // this requires unstable asm feature, uncomment when stabilized
-        //#[cfg(any(target_arch = "powerpc", target_arch = "powerpc64"))]
-        //unsafe {
-        //    core::arch::asm!(
-        //        "dcbtst 0, {}",
-        //        in(reg) addr,
-        //        options(nostack, readonly, preserves_flags)
-        //    ); // Write-prefetch
-        // }
+        // s390x inline assembly was stabilized in Rust 1.84, so older
+        // compilers stay a no-op instead of failing to build. `pfd` has no
+        // locality levels (LLVM ignores locality on SystemZ too), and the
+        // address must go in an address register: `r0` in a base register
+        // slot reads as the literal zero, not as the register.
+        #[cfg(all(rustc_ge_1_84_0, target_arch = "s390x"))]
+        unsafe {
+            core::arch::asm!(
+                "pfd 2, 0({})",
+                in(reg_addr) addr,
+                options(nostack, readonly, preserves_flags)
+            ); // Prefetch for store
+        }
+
+        // PowerPC inline assembly was stabilized in Rust 1.95, so older
+        // compilers stay a no-op instead of failing to build. `dcbtst` carries
+        // no locality levels either, matching LLVM's lowering. The register
+        // holds the `RB` operand, where `r0` keeps its normal meaning.
+        #[cfg(all(
+            rustc_ge_1_95_0,
+            any(target_arch = "powerpc", target_arch = "powerpc64")
+        ))]
+        unsafe {
+            core::arch::asm!(
+                "dcbtst 0, {}",
+                in(reg) addr,
+                options(nostack, readonly, preserves_flags)
+            ); // Write-prefetch
+        }
     }
     #[cfg(branches_nightly)]
     {

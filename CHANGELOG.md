@@ -1,9 +1,14 @@
 # Changelog
 
+## 0.4.6
+
+- Prefetch hints are now emitted on `s390x` (`pfd`) and `powerpc`/`powerpc64` (`dcbt`/`dcbtst`), including `powerpc64le`. Both are gated on the rustc release that stabilized inline assembly for the architecture (1.84 for `s390x`, 1.95 for PowerPC); older compilers keep building the crate with prefetch as a no-op. Neither architecture has cache-level selection in its prefetch instruction, so `LOCALITY` is ignored there.
+
 ## 0.4.5
 
 Fixes (see MIGRATE.md for details and migration notes):
 
+- `likely`, `unlikely`, and `mark_unlikely` had no effect on stable rustc older than 1.95 since 0.4.2: `#[inline(always)]` on the internal cold helpers let the optimizer erase the cold call the hint relies on. The helpers are `#[inline(never)]` again and the hints work on all supported stable compilers.
 - Prefetch `LOCALITY` was interpreted with inverted semantics on nightly (`0` meant non-temporal instead of L1). Nightly now translates to the intrinsics' convention so `0 = L1, 1 = L2, 2 = L3, other = non-temporal` holds on every toolchain, as documented.
 - Prefetch functions failed to compile on 32-bit ARM (AArch64-only `prfm`) and riscv64 (x86 mnemonics). 32-bit ARM is now a no-op; riscv64 emits the correct `prefetch.r`/`prefetch.w` (Zicbop) instructions when built with `-C target-feature=+zicbop` and is a no-op otherwise.
 - A `LOCALITY` outside `0..=3` crashed the compiler on nightly; out-of-range values are now clamped to non-temporal.
@@ -12,6 +17,8 @@ Fixes (see MIGRATE.md for details and migration notes):
 - On AArch64, prefetch now maps `LOCALITY` 1/2 to L2/L3 (`pstl2keep`/`pstl3keep`/`pldl2keep`/`pldl3keep`) and other values to streaming prefetches, matching the documented convention and nightly behavior.
 - `mark_unlikely` lost its documentation and example on rustc >= 1.95; the docs are back.
 - `likely`/`unlikely` are now `#[must_use]`.
+- Declared `rust-version = "1.59"`; build script falls back to the stable code path instead of failing cryptically when the compiler version cannot be detected.
+- README example fixes: `accumulate` prefetched the address of the slice reference instead of the buffer, and write-prefetched the input instead of the output buffer.
 
 ## 0.3.0
 

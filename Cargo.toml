@@ -1,6 +1,6 @@
 [package]
 name = "branches"
-version = "0.4.5"
+version = "0.4.6"
 edition = "2018"
 rust-version = "1.59"
 authors = ["Khashayar Fereidani"]
@@ -25,6 +25,7 @@ unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(branches_stable)',
     'cfg(branches_nightly)',
     'cfg(rustc_ge_1_81_0)',
+    'cfg(rustc_ge_1_84_0)',
     'cfg(rustc_ge_1_95_0)',
     'cfg(branches_check_asm)',
 ] }

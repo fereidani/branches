@@ -50,7 +50,8 @@ Guidelines:
 - Only prefetch a small distance ahead (tune empirically).
 - Too-far or excessive prefetching can evict useful cache lines.
 - Never rely on prefetch for correctness; it is purely a performance hint.
-- Prefetch hints are emitted on `x86`/`x86_64`, `aarch64`, and `riscv64` with the `zicbop` target feature (`-C target-feature=+zicbop`); on other stable targets they compile to no-ops, while nightly defers to LLVM.
+- Prefetch hints are emitted on `x86`/`x86_64`, `aarch64`, `riscv64` with the `zicbop` target feature (`-C target-feature=+zicbop`), `s390x` on rustc 1.84+, and `powerpc`/`powerpc64` on rustc 1.95+ (the releases that stabilized inline assembly for those architectures); on other stable targets they compile to no-ops, while nightly defers to LLVM.
+- `s390x` (`pfd`) and `powerpc`/`powerpc64` (`dcbt`/`dcbtst`) have no cache-level selection, so `LOCALITY` is ignored on those architectures.
 
 ### Likely/Unlikely example
 
@@ -158,10 +159,6 @@ pub fn accumulate(a: &[u64], out: &mut [u64]) -> u64 {
 ```
 
 By correctly using the functions provided by branches, you can achieve a 10-20% improvement in the performance of your algorithms.
-
-## Migration
-
-Upgrading from an older release? See [MIGRATE.md](https://github.com/fereidani/branches/blob/master/MIGRATE.md).
 
 ## License
 
