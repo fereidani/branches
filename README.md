@@ -1,3 +1,7 @@
+<div align="center">
+
+<img src="logo.png" alt="Branches logo" width="200">
+
 # Branches
 
 [![Crates.io][crates-badge]][crates-url]
@@ -10,6 +14,8 @@
 [mit-url]: https://github.com/fereidani/branches/blob/master/LICENSE
 [doc-badge]: https://img.shields.io/docsrs/branches?style=for-the-badge
 [doc-url]: https://docs.rs/branches
+
+</div>
 
 `branches` provides branch prediction hints, control flow assumptions, abort, and manual data prefetch (read & write) helpers for performance optimization, using stable Rust primitives where available and falling back to `core::intrinsics` on nightly.
 
