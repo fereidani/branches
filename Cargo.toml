@@ -17,9 +17,6 @@ default = ["std", "prefetch"]
 std = []
 prefetch = []
 
-[build-dependencies]
-rustc_version = "0.4"
-
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(branches_stable)',
