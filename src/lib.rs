@@ -23,9 +23,12 @@
 // The hint only works while LLVM sees a call to a `#[cold]` function inside
 // the branch, so inlining the empty body kills it -- and since ~1.76 rustc's
 // cross-crate MIR inlining does that on its own unless `#[inline(never)]`
-// stops it.
+// stops it. Under `branches_cold_weights` (rustc 1.84+ at -O2/-O3, see
+// build.rs) the optimizer converts the call into `!prof` branch weights as it
+// inlines, so the call may vanish from callers; at other opt levels no
+// weights are recorded and the call has to stay out of line.
 #[cfg(all(branches_stable, not(rustc_ge_1_95_0)))]
-#[inline(never)]
+#[cfg_attr(not(branches_cold_weights), inline(never))]
 #[cold]
 const fn cold_and_empty() {}
 
@@ -154,9 +157,10 @@ pub fn likely(b: bool) -> bool {
 ///     }
 /// }
 /// ```
+// Same rules as `cold_and_empty` above.
 #[cfg(not(rustc_ge_1_95_0))]
 #[cold]
-#[inline(never)]
+#[cfg_attr(not(branches_cold_weights), inline(never))]
 pub const fn mark_unlikely() {}
 /// Marks a code block as cold, indicating to the compiler that it is unlikely to be called.
 /// This can help the compiler optimize for the common case.

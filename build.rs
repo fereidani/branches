@@ -30,6 +30,15 @@ fn main() {
                     println!("cargo:rustc-cfg={}", cfg);
                 }
             }
+            // rustc 1.84+ (LLVM 19) at -O2/-O3 converts calls to `#[cold]`
+            // functions into `!prof` branch weights while inlining them, so
+            // the empty hint helpers may drop `#[inline(never)]` there.
+            // Other opt levels record no weights and need the call kept out
+            // of line. Measured per stable release from 1.84 through 1.94.
+            let opt_level = env::var("OPT_LEVEL").unwrap_or_default();
+            if release.is_at_least(1, 84) && (opt_level == "2" || opt_level == "3") {
+                println!("cargo:rustc-cfg=branches_cold_weights");
+            }
         }
         // If the compiler version cannot be detected, emitting no cfg at all
         // would make the crate fail to compile with confusing type errors.
