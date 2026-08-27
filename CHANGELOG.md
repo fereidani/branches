@@ -2,6 +2,7 @@
 
 ## 0.4.6
 
+- The minimum supported Rust version is reduced from 1.59 to 1.51.0, the release that stabilized the const generics used by the prefetch API. Inline assembly is only stable since 1.59, so on stable 1.51-1.58 the prefetch functions compile to no-ops on every architecture; the branch hint functions are unaffected. Crate-level documentation (the README include) requires rustc 1.54 and falls back to a short doc string on older compilers.
 - The `rustc_version` build-dependency is gone: the build script now reads `rustc -vV` itself, leaving the crate with zero dependencies. Recent releases of the `semver` crate (which `rustc_version` pulls in) ship manifests that cargo older than 1.60 cannot parse, which would have made the 1.51 MSRV unusable in practice.
 - Prefetch hints are now emitted on `s390x` (`pfd`) and `powerpc`/`powerpc64` (`dcbt`/`dcbtst`), including `powerpc64le`. Both are gated on the rustc release that stabilized inline assembly for the architecture (1.84 for `s390x`, 1.95 for PowerPC); older compilers keep building the crate with prefetch as a no-op. Neither architecture has cache-level selection in its prefetch instruction, so `LOCALITY` is ignored there.
 

@@ -4,10 +4,14 @@ use std::str;
 
 // rustc releases gating version-dependent code paths. Keep in sync with the
 // cfg names used in src/lib.rs and the check-cfg list in Cargo.toml.
+// 1.54: macro invocations in attribute values (`doc = include_str!(...)`).
+// 1.59: inline assembly on x86/x86_64, aarch64 and riscv64.
 // 1.81: `core::hint::assert_unchecked`.
 // 1.84: inline assembly on s390x.
 // 1.95: inline assembly on powerpc/powerpc64, `core::hint::cold_path`.
 const VERSION_CFGS: &[(u64, u64, &str)] = &[
+    (1, 54, "rustc_ge_1_54_0"),
+    (1, 59, "rustc_ge_1_59_0"),
     (1, 81, "rustc_ge_1_81_0"),
     (1, 84, "rustc_ge_1_84_0"),
     (1, 95, "rustc_ge_1_95_0"),

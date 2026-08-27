@@ -13,6 +13,8 @@ fn main() {
         println!("expected path");
     }
     if unlikely(flag) {
+        // On 1.95+ `mark_unlikely` is `cold_path`; clippy can't see the cfg.
+        #[allow(clippy::incompatible_msrv)]
         mark_unlikely();
         println!("unexpected path");
     }

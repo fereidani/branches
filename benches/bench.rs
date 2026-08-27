@@ -1,3 +1,5 @@
+// criterion needs a modern toolchain anyway; the 1.51 MSRV does not apply.
+#![allow(clippy::incompatible_msrv)]
 use branches::{likely, unlikely};
 use core::hint::black_box;
 use criterion::{criterion_group, criterion_main, Criterion};

@@ -1,5 +1,17 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-#![doc = include_str!("../README.md")]
+// `doc = include_str!(...)` needs rustc 1.54, and the nested cfg_attr is
+// load-bearing: pre-1.54 parsers reject this grammar even inside a disabled
+// cfg_attr, but never validate the token tree of an inner list-form attribute.
+#![cfg_attr(
+    rustc_ge_1_54_0,
+    cfg_attr(all(), doc = include_str!("../README.md"))
+)]
+#![cfg_attr(
+    not(rustc_ge_1_54_0),
+    doc = "Branch prediction hints (`likely`, `unlikely`, `mark_unlikely`), control-flow \
+           assumptions (`assume`), `abort`, and CPU cache prefetch helpers for stable Rust. \
+           See the project README for the full documentation."
+)]
 #![warn(missing_docs, missing_debug_implementations)]
 #![cfg_attr(branches_nightly, feature(core_intrinsics))]
 #![cfg_attr(branches_nightly, allow(internal_features))]
@@ -8,10 +20,10 @@
 
 // No one likes to visit this function.
 //
-// It must stay an out-of-line call: the whole trick relies on LLVM seeing a
-// call to a `#[cold]` function inside the branch. Any form of inlining
-// (`#[inline]` or `#[inline(always)]`) removes the call during optimization
-// and with it the hint, turning `likely`/`unlikely` into no-ops.
+// The hint only works while LLVM sees a call to a `#[cold]` function inside
+// the branch, so inlining the empty body kills it -- and since ~1.76 rustc's
+// cross-crate MIR inlining does that on its own unless `#[inline(never)]`
+// stops it.
 #[cfg(all(branches_stable, not(rustc_ge_1_95_0)))]
 #[inline(never)]
 #[cold]
@@ -65,12 +77,14 @@ pub extern "C" fn abort() -> ! {
 pub unsafe fn assume(b: bool) {
     #[cfg(branches_stable)]
     {
-        // Rust >= 1.81.0: use the newer `assert_unchecked` hint.
+        // Rust >= 1.81.0: use the newer `assert_unchecked` hint. Clippy
+        // cannot see that the cfg guarantees the API exists.
         #[cfg(rustc_ge_1_81_0)]
+        #[allow(clippy::incompatible_msrv)]
         {
             core::hint::assert_unchecked(b)
         }
-        // Rust < 1.81.0: fall back to the older `unreachable_unchecked`.
+        // Rust < 1.81.0: fall back to the older `unreachable_unchecked`.
         #[cfg(not(rustc_ge_1_81_0))]
         {
             if !b {
@@ -93,7 +107,9 @@ pub unsafe fn assume(b: bool) {
 #[must_use = "the hint only takes effect when the returned value is used as a branch condition"]
 #[inline(always)]
 pub fn likely(b: bool) -> bool {
+    // On 1.95+ `cold_and_empty` is `cold_path`; clippy can't see the cfg.
     #[cfg(branches_stable)]
+    #[allow(clippy::incompatible_msrv)]
     {
         if !b {
             cold_and_empty();
@@ -190,7 +206,9 @@ pub use core::hint::cold_path as mark_unlikely;
 #[must_use = "the hint only takes effect when the returned value is used as a branch condition"]
 #[inline(always)]
 pub fn unlikely(b: bool) -> bool {
+    // On 1.95+ `cold_and_empty` is `cold_path`; clippy can't see the cfg.
     #[cfg(branches_stable)]
+    #[allow(clippy::incompatible_msrv)]
     {
         if b {
             cold_and_empty();
@@ -220,23 +238,28 @@ pub fn unlikely(b: bool) -> bool {
 ///
 /// # Supported architectures
 ///
-/// On stable, the hint is emitted on `x86`/`x86_64` (with the `sse` target
+/// On stable, the hint is emitted on rustc 1.59 or newer (the release that
+/// stabilized inline assembly) for `x86`/`x86_64` (with the `sse` target
 /// feature, enabled by default on `x86_64` and `i686` targets), `aarch64`,
-/// `riscv64` when compiled with the `zicbop` target feature
-/// (`-C target-feature=+zicbop`), `s390x` on rustc 1.84 or newer, and
-/// `powerpc`/`powerpc64` on rustc 1.95 or newer (the releases that
+/// and `riscv64` when compiled with the `zicbop` target feature
+/// (`-C target-feature=+zicbop`); on rustc 1.84 or newer for `s390x`; and
+/// on rustc 1.95 or newer for `powerpc`/`powerpc64` (the releases that
 /// stabilized inline assembly for those architectures). `s390x`,
 /// `powerpc` and `powerpc64` have a single prefetch instruction with no
-/// cache-level selection, so `LOCALITY` is ignored there. On other targets
-/// this compiles to a no-op. On nightly, the hint is lowered by LLVM for
-/// every architecture that supports one.
+/// cache-level selection, so `LOCALITY` is ignored there. On other targets,
+/// and on stable compilers older than the listed versions, this compiles to
+/// a no-op. On nightly, the hint is lowered by LLVM for every architecture
+/// that supports one.
 #[inline(always)]
 #[cfg(feature = "prefetch")]
 pub fn prefetch_read_data<T, const LOCALITY: i32>(addr: *const T) {
     let _ = addr;
     #[cfg(branches_stable)]
     {
+        // Inline assembly was stabilized in Rust 1.59, so older stable
+        // compilers stay a no-op instead of failing to build.
         #[cfg(all(
+            rustc_ge_1_59_0,
             any(target_arch = "x86", target_arch = "x86_64"),
             target_feature = "sse"
         ))]
@@ -267,7 +290,7 @@ pub fn prefetch_read_data<T, const LOCALITY: i32>(addr: *const T) {
 
         // `prfm` only exists on AArch64; 32-bit ARM would need `pld`, which
         // not every 32-bit ARM target supports, so arm stays a no-op.
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(all(rustc_ge_1_59_0, target_arch = "aarch64"))]
         unsafe {
             match LOCALITY {
                 0 => core::arch::asm!(
@@ -295,7 +318,7 @@ pub fn prefetch_read_data<T, const LOCALITY: i32>(addr: *const T) {
 
         // The Zicbop extension is not part of the baseline riscv64gc target,
         // so the instruction is only emitted when the feature is enabled.
-        #[cfg(all(target_arch = "riscv64", target_feature = "zicbop"))]
+        #[cfg(all(rustc_ge_1_59_0, target_arch = "riscv64", target_feature = "zicbop"))]
         unsafe {
             core::arch::asm!(
                 "prefetch.r 0({})",
@@ -370,23 +393,27 @@ pub fn prefetch_read_data<T, const LOCALITY: i32>(addr: *const T) {
 ///
 /// # Supported architectures
 ///
-/// On stable, the hint is emitted on `x86`/`x86_64` (with the `sse` target
+/// On stable, the hint is emitted on rustc 1.59 or newer (the release that
+/// stabilized inline assembly) for `x86`/`x86_64` (with the `sse` target
 /// feature, enabled by default on `x86_64` and `i686` targets), `aarch64`,
-/// `riscv64` when compiled with the `zicbop` target feature
-/// (`-C target-feature=+zicbop`), `s390x` on rustc 1.84 or newer, and
-/// `powerpc`/`powerpc64` on rustc 1.95 or newer (the releases that
+/// and `riscv64` when compiled with the `zicbop` target feature
+/// (`-C target-feature=+zicbop`); on rustc 1.84 or newer for `s390x`; and
+/// on rustc 1.95 or newer for `powerpc`/`powerpc64` (the releases that
 /// stabilized inline assembly for those architectures). `s390x`,
 /// `powerpc` and `powerpc64` have a single write-prefetch instruction with
 /// no cache-level selection, so `LOCALITY` is ignored there. On other
-/// targets this compiles to a no-op. On nightly, the hint is lowered by
-/// LLVM for every architecture that supports one.
+/// targets, and on stable compilers older than the listed versions, this
+/// compiles to a no-op. On nightly, the hint is lowered by LLVM for every
+/// architecture that supports one.
 #[inline(always)]
 #[cfg(feature = "prefetch")]
 pub fn prefetch_write_data<T, const LOCALITY: i32>(addr: *const T) {
     let _ = addr;
     #[cfg(branches_stable)]
     {
-        #[cfg(target_arch = "x86_64")]
+        // Inline assembly was stabilized in Rust 1.59, so older stable
+        // compilers stay a no-op instead of failing to build.
+        #[cfg(all(rustc_ge_1_59_0, target_arch = "x86_64"))]
         unsafe {
             core::arch::asm!(
                 "prefetchw [{}]",
@@ -398,7 +425,7 @@ pub fn prefetch_write_data<T, const LOCALITY: i32>(addr: *const T) {
         // 32-bit x86: `prefetchw` faults on CPUs without the PRFCHW/3DNow!
         // extension, so fall back to a plain read prefetch into L1, the same
         // strategy GCC and Clang use for `__builtin_prefetch(p, 1)` there.
-        #[cfg(all(target_arch = "x86", target_feature = "sse"))]
+        #[cfg(all(rustc_ge_1_59_0, target_arch = "x86", target_feature = "sse"))]
         unsafe {
             core::arch::asm!(
                 "prefetcht0 [{}]",
@@ -409,7 +436,7 @@ pub fn prefetch_write_data<T, const LOCALITY: i32>(addr: *const T) {
 
         // `prfm` only exists on AArch64; 32-bit ARM would need `pldw`, which
         // requires the MP extension, so arm stays a no-op.
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(all(rustc_ge_1_59_0, target_arch = "aarch64"))]
         unsafe {
             match LOCALITY {
                 0 => core::arch::asm!(
@@ -437,7 +464,7 @@ pub fn prefetch_write_data<T, const LOCALITY: i32>(addr: *const T) {
 
         // The Zicbop extension is not part of the baseline riscv64gc target,
         // so the instruction is only emitted when the feature is enabled.
-        #[cfg(all(target_arch = "riscv64", target_feature = "zicbop"))]
+        #[cfg(all(rustc_ge_1_59_0, target_arch = "riscv64", target_feature = "zicbop"))]
         unsafe {
             core::arch::asm!(
                 "prefetch.w 0({})",
