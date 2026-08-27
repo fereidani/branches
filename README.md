@@ -46,7 +46,7 @@ The following functions are provided by `branches`:
 - `likely(b: bool) -> bool`: Returns the input value but provides hints for the compiler that the statement is likely to be true.
 - `unlikely(b: bool) -> bool`: Returns the input value but provides hints for the compiler that the statement is unlikely to be true.
 - `mark_unlikely()`: Marks the current code path (e.g. a match arm or error branch) as cold without wrapping a condition.
-- `assume(b: bool)`: Assumes that the input condition is always true and causes undefined behavior if it is not. On stable Rust, this function uses `core::hint::assert_unchecked()` (or `core::hint::unreachable_unchecked()` on rustc older than 1.81) to achieve the same effect.
+- `assume(b: bool)`: Assumes that the input condition is always true and causes undefined behavior if it is not. On stable Rust, this function uses `core::hint::assert_unchecked()` (or `core::hint::unreachable_unchecked()` on rustc older than 1.81) to achieve the same effect. It is a `const fn`, so const fns can carry invariants like `assume(len <= CAP)`; on rustc 1.51-1.56, where Rust has no const-legal way to state an assumption, it compiles to a no-op.
 - `abort()`: Aborts the execution of the process immediately and without any cleanup.
 - `prefetch_read_data<T, const LOCALITY: i32>(addr: *const T)`: Hints the CPU to load data at `addr` into cache for an upcoming read. `LOCALITY` selects cache behavior (0 = L1, 1 = L2, 2 = L3, other = non-temporal). The convention is the same on stable and nightly toolchains.
 - `prefetch_write_data<T, const LOCALITY: i32>(addr: *const T)`: Hints the CPU to load a line for an upcoming write. Same `LOCALITY` semantics as above.
@@ -168,7 +168,7 @@ By correctly using the functions provided by branches, you can achieve a 10-20% 
 
 ## Minimum Supported Rust Version
 
-The MSRV is 1.51.0, the release that stabilized the const generics used by the prefetch API. The branch hint functions (`likely`, `unlikely`, `mark_unlikely`, `assume`, `abort`) are fully functional on every supported compiler; the prefetch functions emit instructions starting with the rustc versions listed above and compile to no-ops on older stable compilers.
+The MSRV is 1.51.0, the release that stabilized the const generics used by the prefetch API. The branch hint functions (`likely`, `unlikely`, `mark_unlikely`, `abort`) are fully functional on every supported compiler; `assume` is a `const fn` that compiles to a no-op on rustc 1.51-1.56; the prefetch functions emit instructions starting with the rustc versions listed above and compile to no-ops on older stable compilers.
 
 ## License
 

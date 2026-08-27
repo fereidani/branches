@@ -23,6 +23,7 @@ unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(branches_nightly)',
     'cfg(branches_cold_weights)',
     'cfg(rustc_ge_1_54_0)',
+    'cfg(rustc_ge_1_57_0)',
     'cfg(rustc_ge_1_59_0)',
     'cfg(rustc_ge_1_81_0)',
     'cfg(rustc_ge_1_84_0)',

@@ -72,31 +72,38 @@ pub extern "C" fn abort() -> ! {
 /// if the optimizer can already discover the invariant on its own or if it
 /// doesn't enable any significant optimizations.
 ///
+/// This function is a `const fn`, so a const fn can carry invariants like
+/// `assume(len <= CAP)`. Rust older than 1.57 has no const-legal way to
+/// state an assumption (`core::hint::unreachable_unchecked` became callable
+/// in const fn in 1.57), so on rustc 1.51-1.56 this compiles to a no-op and
+/// the hint is dropped. From rustc 1.59 the hint is exactly as effective as
+/// writing the check by hand; 1.57-1.58 may keep a cheap residual compare in
+/// some loop shapes.
+///
 /// # Safety
 ///
 /// This intrinsic is marked unsafe because it can result in undefined behavior
 /// if the condition passed to it is false.
 #[inline(always)]
-pub unsafe fn assume(b: bool) {
-    #[cfg(branches_stable)]
+pub const unsafe fn assume(b: bool) {
+    let _ = b;
+    // Rust >= 1.81.0: use the newer `assert_unchecked` hint. Clippy cannot
+    // see that the cfg guarantees the API exists.
+    #[cfg(all(branches_stable, rustc_ge_1_81_0))]
+    #[allow(clippy::incompatible_msrv)]
     {
-        // Rust >= 1.81.0: use the newer `assert_unchecked` hint. Clippy
-        // cannot see that the cfg guarantees the API exists.
-        #[cfg(rustc_ge_1_81_0)]
-        #[allow(clippy::incompatible_msrv)]
-        {
-            core::hint::assert_unchecked(b)
-        }
-        // Rust < 1.81.0: fall back to the older `unreachable_unchecked`.
-        #[cfg(not(rustc_ge_1_81_0))]
-        {
-            if !b {
-                core::hint::unreachable_unchecked()
-            }
+        core::hint::assert_unchecked(b)
+    }
+    // Rust 1.57-1.80: `unreachable_unchecked`, const-callable since 1.57.
+    #[cfg(all(branches_stable, rustc_ge_1_57_0, not(rustc_ge_1_81_0)))]
+    {
+        if !b {
+            core::hint::unreachable_unchecked()
         }
     }
-    #[cfg(branches_nightly)]
+    #[cfg(all(branches_nightly, rustc_ge_1_57_0))]
     core::intrinsics::assume(b)
+    // Pre-1.57 compilers, stable or nightly, fall through to the no-op.
 }
 
 /// Hints to the compiler that the branch condition is likely to be true.

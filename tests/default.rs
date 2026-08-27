@@ -44,6 +44,20 @@ fn test_assume_true_no_effect() {
     assert_eq!(COUNTER.load(Ordering::Relaxed), 100);
 }
 
+// `assume` is const on rustc 1.57+; every toolchain that runs the test suite
+// qualifies.
+const fn const_len_like(n: usize) -> usize {
+    unsafe { assume(n <= 8) };
+    n
+}
+
+#[test]
+fn test_assume_in_const_fn() {
+    const N: usize = const_len_like(4);
+    assert_eq!(N, 4);
+    assert_eq!(const_len_like(8), 8);
+}
+
 #[test]
 fn test_assume_in_loop_logic_preserved() {
     let mut sum = 0usize;
