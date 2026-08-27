@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.6
+## 0.5.0
 
 - The minimum supported Rust version is reduced from 1.59 to 1.51.0, the release that stabilized the const generics used by the prefetch API. Inline assembly is only stable since 1.59, so on stable 1.51-1.58 the prefetch functions compile to no-ops on every architecture; the branch hint functions are unaffected. Crate-level documentation (the README include) requires rustc 1.54 and falls back to a short doc string on older compilers.
 - `assume` is now a `const fn` on every supported compiler, so const fns can carry optimizer invariants such as `assume(len <= CAP)` without any version plumbing on the caller's side. Rust older than 1.57 has no const-legal way to state an assumption (`core::hint::unreachable_unchecked` became callable in const fn in 1.57), so on rustc 1.51-1.56 `assume` compiles to a no-op and the hint is dropped there. From 1.59 the hint is exactly as effective as a hand-inlined check; on 1.57-1.58 old LLVM may keep a cheap loop-invariant compare that a hand-inlined check would fold.
