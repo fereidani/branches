@@ -57,7 +57,7 @@ pub extern "C" fn abort() -> ! {
     #[cfg(feature = "std")]
     std::process::abort();
     #[cfg(all(not(feature = "std"), branches_nightly))]
-    core::intrinsics::abort();
+    core::intrinsics::abort_immediate();
     #[cfg(all(not(feature = "std"), branches_stable))]
     panic!("branches::abort() called");
 }
